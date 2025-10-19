@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All Inernational Recipes </title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #ff9966, #ff5e62);
+      margin: 0;
+      color: #333;
+      text-align: center;
+    }
+    h1 {
+      color: #fff;
+      margin-top: 30px;
+      font-size: 2.5em;
+    }
+    .search-container {
+      margin: 20px 0;
+    }
+    input {
+      padding: 12px;
+      width: 250px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      font-size: 16px;
+    }
+    button {
+      padding: 12px 18px;
+      border: none;
+      border-radius: 8px;
+      background-color: #333;
+      color: white;
+      cursor: pointer;
+      margin-left: 8px;
+      transition: 0.3s;
+    }
+    button:hover {
+      background-color: #555;
+    }
+    .recipe-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      padding: 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+    .recipe-card {
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 15px;
+      text-align: center;
+      transition: transform 0.3s;
+    }
+    .recipe-card:hover {
+      transform: scale(1.05);
+    }
+    .recipe-card img {
+      width: 100%;
+      height: 180px;
+      border-radius: 10px;
+      object-fit: cover;
+    }
+    .recipe-card h3 {
+      margin: 10px 0 5px 0;
+      font-size: 18px;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 700px;
+      text-align: left;
+      overflow-y: auto;
+      max-height: 80vh;
+    }
+    .close-btn {
+      background: #ff5e62;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      float: right;
+      cursor: pointer;
+    }
+    ul {
+      margin-left: 15px;
+      list-style: square;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🍳 All International Recipes </h1>
+
+  <div class="search-container">
+    <input type="text" id="searchInput" placeholder="Search recipe (e.g. chicken)">
+    <button onclick="searchRecipes()">Search</button>
+    <button onclick="getRandomRecipe()">🎲 Random Recipe</button>
+    <button onclick="loadAllRecipes()">📖 Show All Recipes</button>
+  </div>
+
+  <div id="recipes" class="recipe-container"></div>
+
+  <!-- Recipe Modal -->
+  <div id="recipeModal" class="modal">
+    <div class="modal-content" id="modalContent">
+      <button class="close-btn" onclick="closeModal()">Close ✖</button>
+    </div>
+  </div>
+
+  <script>
+    const recipeContainer = document.getElementById('recipes');
+    const modal = document.getElementById('recipeModal');
+    const modalContent = document.getElementById('modalContent');
+
+    // Load all recipes by default (A-Z)
+    async function loadAllRecipes() {
+      recipeContainer.innerHTML = "<p style='color:white;'>Loading all recipes...</p>";
+      let allMeals = [];
+      const alphabet = 'abcdefghijklmnopqrstuvwxyz'.split('');
+      for (let letter of alphabet) {
+        const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?f=${letter}`);
+        const data = await res.json();
+        if (data.meals) allMeals = allMeals.concat(data.meals);
+      }
+      displayRecipes(allMeals);
+    }
+
+    // Display recipes as cards
+    function displayRecipes(meals) {
+      if (!meals || meals.length === 0) {
+        recipeContainer.innerHTML = "<p style='color:white;'>No recipes found!</p>";
+        return;
+      }
+      recipeContainer.innerHTML = meals.map(meal => `
+        <div class="recipe-card" onclick="showRecipe('${meal.idMeal}')">
+          <img src="${meal.strMealThumb}" alt="${meal.strMeal}">
+          <h3>${meal.strMeal}</h3>
+          <p><b>${meal.strCategory}</b> - ${meal.strArea}</p>
+        </div>
+      `).join('');
+    }
+
+    // Search recipes by name
+    async function searchRecipes() {
+      const query = document.getElementById('searchInput').value.trim();
+      if (!query) return alert("Please enter a recipe name!");
+      recipeContainer.innerHTML = "<p style='color:white;'>Searching...</p>";
+      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${query}`);
+      const data = await res.json();
+      displayRecipes(data.meals);
+    }
+
+    // Get a random recipe
+    async function getRandomRecipe() {
+      const res = await fetch('https://www.themealdb.com/api/json/v1/1/random.php');
+      const data = await res.json();
+      showRecipe(data.meals[0].idMeal);
+    }
+
+    // Show full recipe details in modal
+    async function showRecipe(id) {
+      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`);
+      const data = await res.json();
+      const meal = data.meals[0];
+      let ingredients = '';
+      for (let i = 1; i <= 20; i++) {
+        if (meal[`strIngredient${i}`]) {
+          ingredients += `<li>${meal[`strIngredient${i}`]} - ${meal[`strMeasure${i}`]}</li>`;
+        }
+      }
+
+      modal.style.display = 'flex';
+      modalContent.innerHTML = `
+        <button class="close-btn" onclick="closeModal()">Close ✖</button>
+        <h2>${meal.strMeal}</h2>
+        <img src="${meal.strMealThumb}" style="width:100%; border-radius:10px;">
+        <p><b>Category:</b> ${meal.strCategory}</p>
+        <p><b>Area:</b> ${meal.strArea}</p>
+        <h3>🧂 Ingredients:</h3>
+        <ul>${ingredients}</ul>
+        <h3>👨‍🍳 Instructions:</h3>
+        <p>${meal.strInstructions}</p>
+        <p><a href="${meal.strYoutube}" target="_blank">🎥 Watch Tutorial on YouTube</a></p>
+      `;
+    }
+
+    function closeModal() {
+      modal.style.display = 'none';
+    }
+
+    // Load all recipes on first open
+    loadAllRecipes();
+  </script>
+
+</body>
+</html>
